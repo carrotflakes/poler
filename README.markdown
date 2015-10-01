@@ -1,6 +1,7 @@
 # Poler
 
 Poler can generate macros which convert infix notation to prefix notation.
+Poler aims to easily build DSL on Common Lisp.
 We call the conversion **polish** in Poler.
 
 
@@ -30,8 +31,8 @@ A polish needs operator definitions. An operator definition is represented as fo
 `name` is a symbol as the operator name.  
 `type` is a keyword represents the operator type.  
 `precedence` is a fixnum over 0 represents the operator precedence. The high precedence of operator is, the more prior association of the operators.  
-`replace-name` is a symbol. See [Name replacement](#Name replacement).  
-`format` is a form. See [Format of form](#Format of form).
+`replace-name` is a symbol. See [Name replacement](#name-replacement).  
+`format` is a form. See [Format of form](#format-of-form).
 
 ### Operator types
 Poler supports following operator types.
@@ -115,7 +116,10 @@ Example:
 
 ## APIs
 
-### Macro: `(define-poler macro-name [operator-definition ...] &key (recursive t) decorate (operator-prefix nil))`
+### Macro: `define-poler`
+
+    (define-poler macro-name [operator-definition ...] &key (recursive t) decorate (operator-prefix nil))
+
 Defines a polish macro.
 
 The keyword parameter `:recursive` enables recursive application to nested form.
@@ -142,7 +146,7 @@ The keyword parameter `:decorate` takes a symbol, if the symbol is non-nil, a re
 ; i.e. (quote (+ 1 2))
 ```
 
-The keyword parameter `:operator-prefix` takes a symbol. See [Name replacement](#Name replacement).
+The keyword parameter `:operator-prefix` takes a symbol. See [Name replacement](#name-replacement).
 
 ``` lisp
 (poler:define-poler foo
@@ -154,7 +158,10 @@ The keyword parameter `:operator-prefix` takes a symbol. See [Name replacement](
 ; => '(foo-+ 1 (* 2 3))
 ```
 
-### Macro: `(polish infix-form [operator-definition ...] &key (recursive t) decorate (operator-prefix nil))`
+### Macro: `polish`
+
+    (polish infix-form [operator-definition ...] &key (recursive t) decorate (operator-prefix nil))
+
 `polish` macro look like `define-poler`, but this macro does not define a polish macro, does polish given infix form once.
 
 ``` lisp
@@ -166,7 +173,10 @@ The keyword parameter `:operator-prefix` takes a symbol. See [Name replacement](
 ; => (+ 1 (* 2 3))
 ```
 
-### Macro: `(define-operator macro-name operator-name type precedence [replace-name | format])`
+### Macro: `define-operator`
+
+    (define-operator macro-name operator-name type precedence [replace-name | format])
+
 `define-operator` macro adds an operator into the polish macro which is named `macro-name`.
 If `type` is `nil`, the macro removes operator `operator-name`.
 
