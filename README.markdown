@@ -1,17 +1,19 @@
 # Poler
 
-Poler is an infix notation macro generator, quite simple.
+Poler can generate macros which convert infix notation to prefix notation.
+We call the conversion **polish** in Poler.
+
 
 ## Usage
 
 ``` lisp
 ;; Define a polish macro named 'arithmetic'.
-(poler::define-poler arithmetic
-  (+ :left 1)
-  (- :left 1)
-  (* :left 2)
-  (/ :left 2))
-  
+(poler:define-poler arithmetic
+  (+ :infixl 1)
+  (- :infixl 1)
+  (* :infixl 2)
+  (/ :infixl 2))
+
 ;; Then, we can use 'arithmetic' macro.
 (arithmetic 1 + 2 * 3)
 ; => 7
@@ -19,75 +21,169 @@ Poler is an infix notation macro generator, quite simple.
 ; => (/ (* 1 2) (+ (+ 3 4) 5))
 ```
 
-## Operators
-Polish macro can transform a form composed of **binary infix operators** and **unary operators** into a prefix form.
 
-We can specify operators such as:
+## Operator definition
+A polish needs operator definitions. An operator definition is represented as following:
+
+	(name type precedence [replace-name | format])
+
+`name` is a symbol as the operator name.  
+`type` is a keyword represents the operator type.  
+`precedence` is a fixnum over 0 represents the operator precedence. The high precedence of operator is, the more prior association of the operators.  
+`replace-name` is a symbol. See [Name replacement](#Name replacement).  
+`format` is a form. See [Format of form](#Format of form).
+
+### Operator types
+Poler supports following operator types.
+
+#### `:infixl`
+Left-associative infix operator.
+
+	(1 + 2 + 3) => (+ (+ 1 2) 3)
+
+#### `:infixr`
+Right-associative infix operator.
+
+	(1 + 2 + 3) => (+ 1 (+ 2 3))
+
+#### `:infix`
+Non-associative infix operator.
+
+	(1 + 2 + 3) => (+ 1 2 3)
+
+#### `:prefix-n` (`n` is a natural number)
+`n` operands prefix operator.
+
+	; In the case of :prefix-3.
+	(+ 1 2 3) => (+ 1 2 3)
+	(+ 1 2)   => Illegal.
+
+#### `:prefix-*`
+Variable arity prefix operator.
+
+	(+ 1 2 3) => (+ 1 2 3)
+	(+ 1 2)   => (+ 1 2)
+
+#### `:postfix`
+Unary postfix operator.
+
+	(1 +) => (+ 1)
+
+### Name replacement
+If you gave `replace-name` to an operator, the operator name is replaced by `replace-name` while polishing.
+
+Example:
+
 ``` lisp
-(+ :left 1)
-```
-means the operator symbol is `+`, associativity is left-associative and precedence is `1`.
+(poler:define-poler arithmetic
+  (+ :infixl 1 add)
+  (* :infixl 2 mul))
 
-If you want to replace operator symbols after polish, specify the operator such as:
+(macroexpand '(arithmetic 1 + 2 * 3)) ; => (add 1 (mul 2 3))
+```
+
+Also, if you gave `operator-prefix` to the polish macro, the operator name is appended `operator-prefix`.
+
+Example:
+
 ``` lisp
-(poler::define-poler foo
-  (+ :left 1 add))
+(poler:define-poler arithmetic
+  (+ :infixl 1)
+  (* :infixl 2)
+	:operator-prefix foo-)
 
-(macroexpand '(foo 1 + 2))
-; => (add 1 2)
+(macroexpand '(arithmetic 1 + 2 * 3)) ; => (foo-+ 1 (foo-* 2 3))
 ```
 
-### Operator associativity
-Poler comprehends following associativities.
-- `:left` : left-associative binary infix operator.
-- `:right` : right-associative binary infix operator.
-- `:non` : non-associative binary infix operator.
-- `:pre` : unary prefix operator.
-- `:post` : unary postfix operator.
+### Format of form
+Usually a polished form shapes such as `(operator operand1 operand2 ...)`, but we can transform the form to any shape also.
+The shape is specified by `format` in the operator definition.
+In form `format`, Symbol `$1`, `$2`, ... will be replaced with `operand1`, `operand2`, ...
+Symbol `$whole` will be replaced with `(operand1 operand2 ...)`.
 
-### Operator precedence
-The high precedence of operator is, the more prior association of the operators.
-An operator precedence must be a fixnum of 0 or more.
+Example:
+
+``` lisp
+(poler:define-poler combine-string
+  (+ :infix    1 (concatenate 'string . $whole))
+  (* :infixl   2 (apply #'concatenate 'string (make-list $2 :initial-element $1))))
+
+(macroexpand '(combine-string "Ha" + " ha" * 3))
+; => (CONCATENATE 'STRING "Ha" (APPLY #'CONCATENATE 'STRING (MAKE-LIST 3 :INITIAL-ELEMENT " ha")))
+```
+
 
 ## APIs
 
-### Macro: `define-poler`
-Defines a polish macro as the usage.
+### Macro: `(define-poler macro-name [operator-definition ...] &key (recursive t) decorate (operator-prefix nil))`
+Defines a polish macro.
 
-This macro takes a keyword parameter `:recursive`.
+The keyword parameter `:recursive` enables recursive application to nested form.
 The default is `t`.
+
 ``` lisp
-(poler::define-poler foo
-  (+ :left 1)
+(poler:define-poler foo
+  (+ :infixl 1)
   :recursive nil)
 
 (macroexpand '(foo 1 + (2 + 3)))
 ; => (+ 1 (2 + 3))
 ```
 
-This macro takes a keyword parameter `:decorate`.
+The keyword parameter `:decorate` takes a symbol, if the symbol is non-nil, a result of the polish is decorated with the symbol.
+
 ``` lisp
-(poler::define-poler foo
-  (+ :left 1)
-  :decorate 'quote)
+(poler:define-poler foo
+  (+ :infixl 1)
+  :decorate quote)
 
 (macroexpand '(foo 1 + 2))
 ; => '(+ 1 2)
 ; i.e. (quote (+ 1 2))
 ```
 
-### Macro: `polish`
-`polish` macros look like `define-poler`, but this macro does not define a polish macro, does polish given infixed-form only once.
+The keyword parameter `:operator-prefix` takes a symbol. See [Name replacement](#Name replacement).
+
 ``` lisp
-(poler::polish '(1 + 2 * 3)
-  (+ :left 1)
-  (- :left 1)
-  (* :left 2)
-  (/ :left 2))
+(poler:define-poler foo
+  (+ :infixl 1)
+  (* :infixl 2 *)
+  :operator-prefix foo-)
+
+(macroexpand '(foo 1 + 2 * 3))
+; => '(foo-+ 1 (* 2 3))
+```
+
+### Macro: `(polish infix-form [operator-definition ...] &key (recursive t) decorate (operator-prefix nil))`
+`polish` macro look like `define-poler`, but this macro does not define a polish macro, does polish given infix form once.
+
+``` lisp
+(poler:polish '(1 + 2 * 3)
+  (+ :infixl 1)
+  (- :infixl 1)
+  (* :infixl 2)
+  (/ :infixl 2))
 ; => (+ 1 (* 2 3))
 ```
 
+### Macro: `(define-operator macro-name operator-name type precedence [replace-name | format])`
+`define-operator` macro adds an operator into the polish macro which is named `macro-name`.
+If `type` is `nil`, the macro removes operator `operator-name`.
+
+``` lisp
+(poler:define-poler arithmetic
+  (+ :infix  1)
+  (* :infixl 2)
+  (% :infixl 3))
+
+(poler:define-operator arithmetic - :infixl 1) ; add operator -
+(poler:define-operator arithmetic + :infixl 1) ; change operator +
+(poler:define-operator arithmetic % nil)       ; remove operator %
+```
+
+
 ## Example
+
 ``` lisp
 (defun fact (n)
   (if (< 0 n)
@@ -95,21 +191,22 @@ This macro takes a keyword parameter `:decorate`.
       1))
 
 (poler::define-poler arithmetic
-  (+   :non   1)
-  (-   :non   1)
-  (*   :non   2)
-  (/   :non   2)
-  (%   :left  2 mod)
-  (^   :right 3 expt)
-  (!   :post  4 fact))
+  (+   :infix   1)
+  (-   :infix   1)
+  (*   :infix   2)
+  (/   :infix   2)
+  (%   :infixl  2 mod)
+  (^   :infixr  3 expt)
+  (!   :postfix 4 fact))
 
 (arithmetic 3 ! ^ 2 / 3 - 2)
 ; => 10
 ```
 
+
 ## Installation
 
-1. Git clone this repository into `~/quicklisp/local-projects/`
+1. Git clone the repository into `~/quicklisp/local-projects/`
 2. `(ql:quickload :poler)`
 
 ## Author
