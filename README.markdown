@@ -29,7 +29,7 @@ A polish needs operator definitions. An operator definition is represented as fo
 	(name type precedence [replace-name | format])
 
 `name` is a symbol as the operator name.  
-`type` is a keyword represents the operator type.  
+`type` is a keyword represents the operator type. See [Operator types](#operator-types).  
 `precedence` is a fixnum over 0 represents the operator precedence. The high precedence of operator is, the more prior association of the operators.  
 `replace-name` is a symbol. See [Name replacement](#name-replacement).  
 `format` is a form. See [Format of form](#format-of-form).
@@ -73,7 +73,7 @@ Unary postfix operator.
 ### Name replacement
 If you gave `replace-name` to an operator, the operator name is replaced by `replace-name` while polishing.
 
-Example:
+For example:
 
 ``` lisp
 (poler:define-poler arithmetic
@@ -85,7 +85,7 @@ Example:
 
 Also, if you gave `operator-prefix` to the polish macro, the operator name is appended `operator-prefix`.
 
-Example:
+For example:
 
 ``` lisp
 (poler:define-poler arithmetic
@@ -99,10 +99,9 @@ Example:
 ### Format of form
 Usually a polished form shapes such as `(operator operand1 operand2 ...)`, but we can transform the form to any shape also.
 The shape is specified by `format` in the operator definition.
-In form `format`, Symbol `$1`, `$2`, ... will be replaced with `operand1`, `operand2`, ...
-Symbol `$whole` will be replaced with `(operand1 operand2 ...)`.
+In form `format`, symbol `$1`, `$2`, ... will be replaced with `operand1`, `operand2`, ... , symbol `$whole` will be replaced with `(operand1 operand2 ...)`.
 
-Example:
+For example:
 
 ``` lisp
 (poler:define-poler combine-string
@@ -124,14 +123,23 @@ Defines a polish macro.
 
 The keyword parameter `:recursive` enables recursive application to nested form.
 The default is `t`.
+Quoted forms are exempted from recursive application.
 
 ``` lisp
 (poler:define-poler foo
   (+ :infixl 1)
   :recursive nil)
 
-(macroexpand '(foo 1 + (2 + 3)))
-; => (+ 1 (2 + 3))
+(macroexpand '(foo 1 + (2 + 3) + '(+ 4 5)))
+; => (+ (+ 1 (2 + 3)) '(+ 4 5))
+
+
+(poler:define-poler bar
+  (+ :infixl 1)
+  :recursive t)
+
+(macroexpand '(bar 1 + (2 + 3) + '(+ 4 5)))
+; => (+ (+ 1 (+ 2 3)) (+ 4 5))
 ```
 
 The keyword parameter `:decorate` takes a symbol, if the symbol is non-nil, a result of the polish is decorated with the symbol.
@@ -157,6 +165,7 @@ The keyword parameter `:operator-prefix` takes a symbol. See [Name replacement](
 (macroexpand '(foo 1 + 2 * 3))
 ; => '(foo-+ 1 (* 2 3))
 ```
+
 
 ### Macro: `polish`
 
