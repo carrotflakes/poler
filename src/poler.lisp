@@ -234,7 +234,7 @@
                 -1)))
     (if (= (length parts) 1)
         (cdr (first parts))
-        (error "Invarid form."))))
+        (error "Invalid form."))))
 
 
 (defun %%define-operator (*operators* operator-source operator-prefix)
