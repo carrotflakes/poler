@@ -7,7 +7,7 @@
 
 ;; NOTE: To run this test file, execute `(asdf:test-system :poler)' in your Lisp.
 
-(plan 23)
+(plan 107)
 
 
 ;;; infix | infixl | infixr
@@ -152,6 +152,87 @@
       (post2 :postfix 5))
     '(POST1 (PRE1 (+ (PRE2 (* (PRE3 1) 2)) (POST2 3))))
     :test #'equal)
+
+
+;;; complex
+
+(defun all-combi (lists)
+  (if lists
+      (loop
+         for rest in (all-combi (cdr lists))
+         append (loop
+                   for x in (car lists)
+                   collect (cons x rest)))
+      '(())))
+
+(defun make-forms (n ops)
+  (if (zerop n)
+      (list 1)
+      (let ((forms (make-forms (1- n) ops)))
+        (loop
+           for op in ops
+           append (all-combi (list* (list op)
+                                    (loop
+                                       repeat (second op)
+                                       collect forms)))))))
+
+(defun build-prefix (form)
+  (if (numberp form)
+      form
+      (list* (first (first form))
+             (loop
+                for operand in (cdr form)
+                collect (build-prefix operand)))))
+
+(defun build-infix (form &optional (priority -1) pop)
+  (if (numberp form)
+      (list form)
+      (destructuring-bind (op-name op-arity op-type op-priority) (first form)
+        (declare (ignore op-arity))
+        (let ((ret
+               (case op-type
+                 (:infix
+                  (cdr (loop
+                          for f in (cdr form)
+                          collect op-name
+                          append (build-infix f op-priority))))
+                 (:infixl
+                  `(,@(build-infix (second form) op-priority (first form))
+                      ,op-name
+                      ,@(build-infix (third form) op-priority)))
+                 (:infixr
+                  `(,@(build-infix (second form) op-priority)
+                      ,op-name
+                      ,@(build-infix (third form) op-priority (first form))))
+                 ((:prefix-n :prefix-*)
+                  `(,op-name
+                    ,@(loop
+                         for operand in (cdr form)
+                         append (build-infix operand op-priority))))
+                 (:postfix
+                  `(,@(build-infix (first (cdr form)) op-priority (first form))
+                      ,op-name)))))
+          (if (or (eq pop (first form)) (< priority op-priority))
+              ret
+              (list ret))))))
+
+(loop
+   for form in (make-forms 2 '((+ 3 :infix 1) (- 2 :infixl 2) (* 2 :infixr 3)))
+   do (is (polish (build-infix form)
+                  (+ :infix 1)
+                  (- :infixl 2)
+                  (* :infixr 3))
+          (build-prefix form)
+          :test #'equal))
+
+(loop
+   for form in (make-forms 2 '((+ 2 :infixl 1) (- 3 :prefix-n 2) (* 1 :postfix 3)))
+   do (is (polish (build-infix form)
+                  (+ :infixl 1)
+                  (- :prefix-3 2)
+                  (* :postfix 3))
+          (build-prefix form)
+          :test #'equal))
 
 
 ;;; recursive option
