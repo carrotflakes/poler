@@ -23,6 +23,16 @@
 (defmethod print-object ((object operator) stream)
   (format stream "#<~a>" (operator-name object)))
 
+(defmethod make-load-form ((self operator) &optional environment)
+  (declare (ignore environment))
+  `(make-operator
+    :name ',(operator-name self)
+    :fix ',(operator-fix self)
+    :arity ',(operator-arity self)
+    :precedence ',(operator-precedence self)
+    :replace-name ',(operator-replace-name self)
+    :format ',(operator-format self)))
+
 
 ;;; special variables
 (defparameter *operators* nil)
