@@ -1,8 +1,8 @@
-# Poler
+# poler
 
 Poler can generate macros which convert infix notation to prefix notation.
 Poler aims to easily build DSL on Common Lisp.
-We call the conversion **polish** in Poler.
+We call the conversion **polish** in poler.
 
 
 ## Usage
