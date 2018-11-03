@@ -20,7 +20,7 @@
   :components ((:module "src"
                 :components
                 ((:file "poler"))))
-  :description ""
+  :description "Infix notation macro generator"
   :long-description
   #.(with-open-file (stream (merge-pathnames
                              #p"README.markdown"
